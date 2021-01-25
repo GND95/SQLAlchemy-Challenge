@@ -106,9 +106,26 @@ def startDate(start):
     return jsonify(final_temperature_list) #return the JSON representation of the final, formatted list
 
 @app.route("/api/v1.0/<start>/<end>")
-def startEndDate():
-    print("Server received request for 'start/end' endpoint...")
-    return "Welcome to my 'start/end' endpoint!"
+def startEndDate(start, end):
+    most_active_stations = session.query(Measurement.station, func.count(Measurement.station)).group_by(Measurement.station).order_by(func.count(Measurement.station).desc()).all() #getting the most active station IDs
+    most_active_single_station = most_active_stations[0][0] #list of lists -- getting the 0th element of the outer list and then the 0th element of the inner list, i.e. the single most active station ID
+    temperature_data = session.query(Measurement.tobs).filter(Measurement.station == most_active_single_station).filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+    session.close() #closing connection to database
+
+    temperature_list = []
+    for temp in temperature_data:
+        temperature_list.append(temp[0]) #getting the 0th element from each inner list to help with formatting
+    try:
+        min_temp = "min: " + str(min(temperature_list))
+        avg_temp = "avg: " + str(round(np.mean(temperature_list),0))
+        max_temp = "max: " + str(max(temperature_list))
+    except ValueError: #if we get this particular error, the user entered a date that does not have temperature data associated with it
+        return jsonify({"error": "There are no temperature entries for this date range."}), 404
+
+    final_temperature_list = []
+    final_temperature_list.append([min_temp, avg_temp, max_temp]) #appending the formatted variables to the final list
+
+    return jsonify(final_temperature_list) #return the JSON representation of the final, formatted list
 
 if __name__ == "__main__":
     app.run(debug=True)
