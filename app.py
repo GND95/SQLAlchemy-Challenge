@@ -40,7 +40,13 @@ def home():
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     print("Server received request for 'precipitation' endpoint...")
-    precipitation_query_results = session.query(Measurement.date, Measurement.prcp).order_by(Measurement.date).all() #querying the SQLite DB
+    most_active_stations = session.query(Measurement.station, func.count(Measurement.station)).group_by(Measurement.station).order_by(func.count(Measurement.station).desc()).all() #getting the most active station IDs
+    most_active_single_station = most_active_stations[0][0] #list of lists -- getting the 0th element of the outer list and then the 0th element of the inner list, i.e. the single most active station ID
+    this_station_most_recent_date = session.query(Measurement.date).filter(Measurement.station == most_active_single_station).order_by(Measurement.date.desc()).first()
+    intDateListStation = this_station_most_recent_date[0].split('-') #splitting the formatted date to a list
+    most_recent_query_date_station = dt.date(int(intDateListStation[0]), int(intDateListStation[1]), int(intDateListStation[2])) #converting date list to a date object
+    query_date = most_recent_query_date_station - dt.timedelta(days=365) #getting the date from a year ago
+    precipitation_query_results = session.query(Measurement.date, Measurement.prcp).filter(Measurement.station == most_active_single_station).filter(Measurement.date > query_date).order_by(Measurement.date).all() #querying the SQLite DB
     session.close() #closing connection to database
 
     precipitation_list = [] #list for storing the dictionary
