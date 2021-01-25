@@ -53,7 +53,11 @@ def precipitation():
 @app.route("/api/v1.0/stations")
 def stations():
     print("Server received request for 'stations' endpoint...")
-    return "Welcome to my 'stations' endpoint!"
+    station_query_results = session.query(Station.station).all() #query for getting all the weather station names
+    station_list = []
+    for element in station_query_results:
+        station_list.append(element[0]) #iterating through the list of lists to get the 0th element of each inner list (station name)
+    return jsonify(station_list) #return the JSON representation of the list
 
 @app.route("/api/v1.0/tobs")
 def tobs():
