@@ -18,6 +18,9 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 
+# Create our session (link) from Python to the DB
+session = Session(engine)
+
 app = Flask(__name__)
 
 @app.route("/")
@@ -36,7 +39,16 @@ def home():
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     print("Server received request for 'precipitation' endpoint...")
-    return "Welcome to my 'precipitation' endpoint!"
+    precipitation_query_results = session.query(Measurement.date, Measurement.prcp).order_by(Measurement.date).all() #querying the SQLite DB
+    session.close() #closing connection to database
+
+    precipitation_list = [] #list for storing the dictionary
+    for date, prcp in precipitation_query_results: #for every date and precipitation value in the query results
+        precipitation_dictionary = {} #dictionary used to keep the dates (as keys) and precipitation (as values) separate
+        precipitation_dictionary[date] = prcp #for each row of the query results, the date will be the dictionary key and the precipitation will be the dictionary value
+        precipitation_list.append(precipitation_dictionary) #append the dictionary to the list so later we can jsonify the data
+
+    return jsonify(precipitation_list) #return the JSON representation of the list
 
 @app.route("/api/v1.0/stations")
 def stations():
