@@ -4,6 +4,7 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func, inspect
+import datetime as dt
 
 # create engine to hawaii.sqlite
 engine = create_engine("sqlite:///Resources/hawaii.sqlite", echo=False)
@@ -53,16 +54,27 @@ def precipitation():
 @app.route("/api/v1.0/stations")
 def stations():
     print("Server received request for 'stations' endpoint...")
-    station_query_results = session.query(Station.station).all() #query for getting all the weather station names
+    station_query_results = session.query(Station.station).all() #query for getting all the weather station IDs
+    session.close() #closing connection to database
     station_list = []
     for element in station_query_results:
-        station_list.append(element[0]) #iterating through the list of lists to get the 0th element of each inner list (station name)
+        station_list.append(element[0]) #iterating through the list of lists to get the 0th element of each inner list (station ID)
     return jsonify(station_list) #return the JSON representation of the list
 
 @app.route("/api/v1.0/tobs")
 def tobs():
     print("Server received request for 'tobs' endpoint...")
-    return "Welcome to my 'tobs' endpoint!"
+    most_active_stations = session.query(Measurement.station, func.count(Measurement.station)).group_by(Measurement.station).order_by(func.count(Measurement.station).desc()).all() #getting the most active station IDs
+    most_active_single_station = most_active_stations[0][0] #list of lists -- getting the 0th element of the outer list and then the 0th element of the inner list, i.e. the single most active station ID
+    this_station_most_recent_date = session.query(Measurement.date).filter(Measurement.station == most_active_single_station).order_by(Measurement.date.desc()).first()
+    intDateListStation = this_station_most_recent_date[0].split('-') #splitting the formatted date to a list
+    most_recent_query_date_station = dt.date(int(intDateListStation[0]), int(intDateListStation[1]), int(intDateListStation[2])) #converting date list to a date object
+    query_date = most_recent_query_date_station - dt.timedelta(days=365) #getting the date from a year ago
+    #the following query will return the dates and temperature observations of the most active station for the last year of data
+    station_date_temp_results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == most_active_single_station).filter(Measurement.date > query_date).all()
+    session.close() #closing connection to database
+
+    return jsonify(station_date_temp_results)
 
 @app.route("/api/v1.0/<start>") #TODO
 def startDate():
